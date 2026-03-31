@@ -1,0 +1,8 @@
+.venv/
+tmp/
+data/*.mat
+data/canonical/
+data/features/
+data/experiments/
+analysis/experiment_registry.csv
+analysis/experiment_registry.jsonl
