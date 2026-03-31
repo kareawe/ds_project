@@ -43,7 +43,6 @@ ESS 배터리 데이터를 분석하여 수명 예측 모델을 구축한 프로
         ├── split.py
         └── train_elastic_net.py
 
-## 7 directories, 27 files
 ```
 
 ## 환경 설정
