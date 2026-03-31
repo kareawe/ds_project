@@ -107,6 +107,128 @@ python preprocessing/train_elastic_net.py \
 - **핵심 발견**
   수명은 ΔQ, 온도, 충전시간 등 다양한 변수와 연관되지만 Batch 2, 3에서 구조 변화가 상관관계를 바꿀 정도로 크게 작용하므로, cell 구조가 가장 지배적인 결정 요인이다.
 
+## Modeling
+
+### 피처 엔지니어링 전략
+
+EDA 결과를 바탕으로 **Batch 간 분포 차이(Distribution Shift)**를 고려한 feature 설계를 수행하였다.
+
+- ΔQ(V), IR, 충전시간, 온도가 수명과 주요하게 연관됨
+- 단일 값보다 변화량(delta)과 추세(slope)가 더 중요한 정보 제공
+- Batch에 따라 동일 feature의 의미가 달라지는 현상 확인
+
+이에 따라 다음과 같은 전략을 적용하였다.
+
+- last + delta + slope 동시 사용 (구조 변화 대응)
+- ΔQ(V) 기반 feature 유지 (초기 열화 패턴 반영)
+- 물리적 의미 기반 변수 선택 (IR, 온도, 충전시간)
+- 중복 feature 최소 제거 (generalization 유지)
+
+---
+
+### Multicollinearity (VIF)
+
+일부 변수(`QDischarge`, `IR`, `chargetime`의 last/delta 조합)에서 VIF 값이 높게 나타났다.
+
+이는 Train Batch에서 해당 변수들이 거의 동일한 값을 가지는 구조적 특성으로 인해 발생한 것이다.
+
+그러나 External Batch에서는 이러한 관계가 유지되지 않으며,
+동일 feature라도 Batch에 따라 의미와 역할이 달라지는 현상이 확인되었다.
+
+따라서 본 프로젝트에서는 단순히 다중공선성을 제거하는 대신,
+
+→ **구조적 collinearity와 generalization 간 trade-off를 고려하여 feature를 유지하는 전략을 선택하였다**
+
+즉, Train 데이터 기준의 통계적 안정성보다
+**External 데이터에서의 성능 유지(일반화)를 우선하였다.**
+
+---
+
+### Feature Set
+
+### Input (X)
+
+초기 사이클에서 추출한 **열화 상태, 변화 패턴, 물리적 특성 변수**
+
+- QDischarge_last, QDischarge_delta, QDischarge_slope
+- IR_std, IR_last, IR_delta, IR_slope
+- Tavg_mean
+- chargetime_last, chargetime_delta
+- Qdlin_delta_c100_c010_logvar
+
+### Output (y)
+
+배터리 전체 수명(cycle life)
+
+수명 분포의 비대칭(long-tailed)을 완화하기 위해 로그 변환 후 학습하며, 예측 결과는 원래 scale로 복원하여 평가
+
+- Target: cycle_life
+- 학습 시: log(cycle_life)
+
+---
+
+# 모델 선택 및 근거
+
+- 후보모델:
+  - `Linear Regression(11 features)`
+  - `Elastic Net(9 features)`
+  - `Elastic Net(10 features)`
+  - `Elastic Net(11 features)`
+  - `Elastic Net(12 features)`
+  - `Elastic Net(13 features)`
+- 최종모델:
+  - `Elastic Net(11 features)`
+- 선택이유:
+  - `Linear Regression(11 features)`는 holdout MAPE는 낮았지만 batch2 데이터 MAPE가 `524.92%`로 붕괴해 제외했다.
+  - `Elastic Net(9 features)`와 `Elastic Net(10 features)`는 피처 수는 더 적지만 batch2 데이터 MAPE가 각각 `41.45%`, `42.78%`로 크게 악화됐다.
+  - `Elastic Net(13 features)`는 holdout은 가장 안정적이지만, `Elastic Net(11 features)`가 batch2 데이터 MAPE를 `19.79% -> 19.09%`로 소폭 개선했다.
+  - 따라서 최종 제출은 공선성을 일부 줄이면서 batch2 일반화도 유지한 `Elastic Net(11 features)`로 결정했다.
+
+# 성능결과(Table)
+
+| 모델                               | CV RMSE | CV MAPE(%) | Holdout RMSE | Holdout MAPE(%) | Batch2 RMSE | Batch2 MAPE(%) |
+| ---------------------------------- | ------: | ---------: | -----------: | --------------: | ----------: | -------------: |
+| `Linear Regression(11 features)` |   83.86 |       8.14 |        65.62 |            6.60 |     2707.75 |         524.92 |
+| `Elastic Net(10 features)`       |   69.23 |       6.93 |        67.72 |            6.79 |      234.38 |          42.78 |
+| `Elastic Net(9 features)`        |   67.49 |       6.55 |        66.24 |            6.63 |      227.54 |          41.45 |
+| `Elastic Net(12 features)`       |   69.06 |       6.86 |        72.62 |            7.44 |      156.61 |          21.25 |
+| `Elastic Net(13 features)`       |   68.84 |       6.92 |        67.08 |            6.68 |      144.17 |          19.79 |
+| `Elastic Net(11 features)`       |   68.30 |       6.77 |        70.73 |            7.29 |      152.55 |          19.09 |
+
+최종 `Elastic Net(11 features)` 피처:
+
+- `QDischarge_last`
+- `QDischarge_delta`
+- `QDischarge_slope`
+- `IR_std`
+- `IR_last`
+- `IR_delta`
+- `IR_slope`
+- `Tavg_mean`
+- `chargetime_last`
+- `chargetime_delta`
+- `Qdlin_delta_c100_c010_logvar`
+
+  - cycle 100과 cycle 10의 `Qdlin` 곡선 차이를 구한 뒤, 그 분산을 `log`로 요약한 피처다.
+  - 초기 열화 패턴 변화량을 압축해서 담는 핵심 변수로 볼 수 있다.
+
+# 오류분석
+
+- 모델이 가장 크게 틀린 cell의 공통
+
+  - batch2 데이터에서 큰 오차를 낸 셀들은 고수명 셀(`target >= 900`) 비중이 높고, 예측이 전반적으로 과소추정되는 경향이 있다.
+  - `IR_last=0`, `IR_std=0`처럼 IR 정보가 거의 사라진 셀이 반복적으로 나타난다.
+- 원인가설 및 개선방향
+
+  - 원인 1: batch1과 batch2 사이에 피처 의미가 달라진다.
+    - 이번 실험에서 가장 중요했던 맥락은 `last/delta` 피처가 batch1에서는 거의 같은 의미였지만 batch2에서는 더 이상 같지 않다는 점이다.
+    - 그래서 batch1 기준으로 공선성만 보고 last 피쳐를 제거한 모델은 holdout MAPE은 유지해도 batch2 MAPE가 크게 악화됐다.
+    - `Elastic Net(11 features)`를 최종 선택한 이유도, 공선성을 일부 감수하더라도 batch2에서 의미가 달라지는 신호를 보존해야 했기 때문이다.
+  - 개선: `last/delta`를 유지하면서 `first`, `last-first`, `delta/first`, `last/first` 같은 batch-robust 파생 피처를 추가해 batch 간 의미 차이를 직접 모델링한다.
+  - 원인 2: 모델이 batch2의 고수명 구간을 충분히 복원하지 못한다.
+    - 큰 오차 셀 다수가 고수명 구간에 몰려 있고, 예측 오차 부호가 주로 음수라 상단 구간 과소추정이 일관되게 나타난다.
+    - 여기에 `IR_last=0`, `IR_std=0`처럼 IR 정보가 약한 셀까지 겹치면 모델이 소수 피처에 더 의존하게 되어 오차가 커진다.
+  - 개선: 고수명 구간 과소추정을 줄이기 위해 upper-tail calibration, 구간별 보정, 또는 고수명 샘플 가중치 조정을 적용한다.
 
 ## ESS 도메인 해석
 
