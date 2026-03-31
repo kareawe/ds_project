@@ -18,16 +18,6 @@ ESS 배터리 데이터를 분석하여 수명 예측 모델을 구축한 프로
 │   ├── 01-ESSHealth_cratch_EDA1,4.ipynb
 │   ├── 01-ESSHealth-scratch-EDA2,5.ipynb
 │   └── 01-ESSHealth-scratct_EDA3.ipynb
-├── preprocessing
-│   ├── build_canonical_dataset.py
-│   ├── build_experiment_split.py
-│   ├── build_feature_dataset.py
-│   ├── common.py
-│   ├── experiment_tracker.py
-│   ├── feature_config.example.json
-│   ├── feature_config.reduced_summary.json
-│   ├── train_elastic_net.py
-│   └── train_linear_regression.py
 ├── requirements.txt
 ├── Severson_NatureEnergy_2019.pdf
 └── submission_compromise11
