@@ -34,7 +34,7 @@ ESS 배터리 데이터를 분석하여 수명 예측 모델을 구축한 프로
         └── train_elastic_net.py
 
 ```
-
+- submission_compromise11 루트 경로에서 실행주시면 감사하겠습니다.
 ## 환경 설정
 ```bash
 git clone https://github.com/kareawe/ds_project.git
