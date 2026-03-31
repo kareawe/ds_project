@@ -1,0 +1,26 @@
+{
+  "early_cycles": 100,
+  "target_key": "cycle_life",
+  "include_sequence": false,
+  "include_policy_one_hot": false,
+  "policy_key": "policy",
+  "summary_features": [
+    "QDischarge",
+    "IR",
+    "Tavg",
+    "chargetime"
+  ],
+  "aggregations": [],
+  "feature_aggregations": {
+    "QDischarge": ["last", "delta", "slope"],
+    "IR": ["std", "last", "delta", "slope"],
+    "Tavg": ["mean"],
+    "chargetime": ["last", "delta"]
+  },
+  "qdlin_pairs": [
+    [100, 10]
+  ],
+  "qdlin_stats": [
+    "logvar"
+  ]
+}
