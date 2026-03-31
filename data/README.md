@@ -28,7 +28,7 @@ Battery Cell
 `summary`는 각 사이클을 하나의 요약값으로 정리한 데이터이다.  
 배터리의 전체 열화 추세를 확인하거나, 사이클별 변화량을 기반으로 feature를 만들 때 주로 사용한다.
 
-| 변수명       | 타입    | 의미                       | 활용           |
+| 주요 변수명       | 타입    | 의미                       | 활용           |
 | ------------ | ------- | -------------------------- | -------------- |
 | `cycle`      | ndarray | 사이클 번호 (1, 2, 3, ...) | 시간 축        |
 | `QDischarge` | ndarray | 방전 용량                  | 열화 분석      |
@@ -46,7 +46,7 @@ Battery Cell
 `cycles`는 각 사이클 내부에서 측정된 원본 시계열 데이터이다.  
 즉, 한 사이클이 진행되는 동안 시간에 따라 전압, 전류, 온도, 용량이 어떻게 변하는지를 담고 있다.
 
-| 변수명 | 타입    | 의미      | 특징      | 활용        |
+| 주요 변수명 | 타입    | 의미      | 특징      | 활용        |
 | ------ | ------- | --------- | --------- | ----------- |
 | `t`    | ndarray | 시간      | 길이 가변 | 원본 데이터 |
 | `V`    | ndarray | 전압      | 시간 기준 | 원본 데이터 |
@@ -91,15 +91,19 @@ Battery Cell
 
 ---
 
-## 6. Modeling Strategy (Classification)
+## 6. Modeling Strategy (Regression)
 
 ### Target
+배터리 전체 수명(cycle life)
 
-- Long-life: >
-- Short-life: <
+수명 분포의 비대칭(long-tailed)을 완화하기 위해 로그 변환 후 학습하며, 예측 결과는 원래 scale로 복원하여 평가
 
 ### Feature
-
+- QDischarge_last, QDischarge_delta, QDischarge_slope
+- IR_std, IR_last, IR_delta, IR_slope
+- Tavg_mean
+- chargetime_last, chargetime_delta
+- Qdlin_delta_c100_c010_logvar
 -
 
 ### Data Split
