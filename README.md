@@ -63,6 +63,40 @@ git clone https://github.com/kareawe/ds_project.git
 cd ds_project
 pip install -r requirements.txt
 ```
+## 실행 방법
+
+```bash
+# 안정적인 실행을 위한 옵션
+set -euo pipefail
+
+# 1. 원본 .mat → canonical 데이터 변환
+python preprocessing/build_canonical_dataset.py \
+  data/*.mat \
+  --output-dir data/canonical
+
+# 2. feature dataset 생성 (compromise11 기준)
+python preprocessing/build_feature_dataset.py \
+  --canonical-dir data/canonical \
+  --config preprocessing/feature_config.compromise11.json \
+  --output-dir data/features/compromise11
+
+# 3. 실험용 데이터 분할 (train / holdout / external)
+python preprocessing/build_experiment_split.py \
+  --dataset-csv data/features/compromise11/dataset.csv \
+  --train-batch 2017-05-12_batchdata_updated_struct_errorcorrect \
+  --external-test-batch 2018-02-20_batchdata_updated_struct_errorcorrect \
+  --output-dir data/experiments/compromise11_2017_holdout_cv
+
+# 4. Elastic Net 학습 및 평가
+python preprocessing/train_elastic_net.py \
+  --split-dir data/experiments/compromise11_2017_holdout_cv \
+  --output-dir data/experiments/compromise11_2017_holdout_cv/elastic_net_log_upper_clip_tuned_ape \
+  --selection-metric avg_percent_error \
+  --lambda-grid 0.001 0.002 0.005 0.01 0.02 0.05 0.1 \
+  --l1-ratio-grid 0.001 0.005 0.01 0.05 0.1 0.3 0.5 \
+  --zscore-clip 5.0 \
+  --log-prediction-clip-mode upper
+
 
 ---
 
